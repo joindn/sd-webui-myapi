@@ -17,7 +17,7 @@
 
 ### Delete Model
 
-- **URL**: `/myapi/model/{modelName}`
+- **URL**: `/myapi/model/{filename}`
 - **Method**: `DELETE`
 - **Auth Required**: Yes (--api-auth admin:123456)
 - **Path Parameters**:
