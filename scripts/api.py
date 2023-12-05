@@ -11,27 +11,45 @@ logging.basicConfig(level=logging.INFO)
 
 router = APIRouter(prefix="/myapi")
 
+
 def create_api(_: gr.Blocks, app: FastAPI):
     api = Api(app, queue_lock)
-    
+
     @router.post("/model", dependencies=[Depends(api.auth)])
     async def uploadModel(
         chunkNumber: int = Body(..., title='chunk number'),
         content: str = Body(..., title='chunk content'),
         filename: str = Body(..., title='filename'),
-        modelType: str = Body("Stable-diffusion", title='model type'),
+        modelType: str = Body(..., title='model type'),
+        paths: str = Body(..., title='models subdir path'),
         overwrite: bool = Body(False, title='overwrite'),
     ):
-        model_dir = Path(os.getcwd()) / 'models' / modelType
-        model_dir.mkdir(parents=True, exist_ok=True)
-        file_path = model_dir / filename
+
+        pathsList = paths.split('/')
+        if len(pathsList) > 3:
+            raise HTTPException(
+                status_code=400, detail="Path exceeds the maximum depth of 3")
+        if any('..' in p or p.startswith('/') for p in pathsList):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        if modelType == "lora":
+            subDir = "Lora"
+        elif modelType == "checkpoint":
+            subDir = "Stable-diffusion"
+        elif modelType == "vae":
+            subDir = "VAE"
+        else:
+            raise HTTPException(status_code=400, detail="Invalid model type")
+        modelDir = Path(os.getcwd(), 'models', subDir, *pathsList)
+        modelDir.mkdir(parents=True, exist_ok=True)
+        filepath = modelDir / filename
 
         try:
-            if chunkNumber == 1 and file_path.exists() and not overwrite:
+            if chunkNumber == 1 and filepath.exists() and not overwrite:
                 return {"code": "1", "message": "File already exists and overwrite is false"}
 
             mode = 'wb' if chunkNumber == 1 else 'ab'
-            with open(file_path, mode) as f:
+            with open(filepath, mode) as f:
                 f.write(base64.b64decode(content))
 
             if chunkNumber == -1:
@@ -41,10 +59,25 @@ def create_api(_: gr.Blocks, app: FastAPI):
             logging.error(f"Error in uploadModel: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.delete("/model/{modelName}", dependencies=[Depends(api.auth)])
-    async def deleteModel(modelName: str, modelType: str = "Stable-diffusion"):
-        model_dir = Path(os.getcwd()) / 'models' / modelType
-        file_path = model_dir / modelName
+    @router.delete("/model/{filename}", dependencies=[Depends(api.auth)])
+    async def deleteModel(filename: str, modelType: str, paths: str):
+
+        pathsList = paths.split('/')
+        if len(pathsList) > 3:
+            raise HTTPException(
+                status_code=400, detail="Path exceeds the maximum depth of 3")
+        if any('..' in p or p.startswith('/') for p in pathsList):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        if modelType == "lora":
+            subDir = "Lora"
+        elif modelType == "checkpoint":
+            subDir = "Stable-diffusion"
+        elif modelType == "vae":
+            subDir = "VAE"
+        else:
+            raise HTTPException(status_code=400, detail="Invalid model type")
+        file_path = Path(os.getcwd(), 'models', subDir, *pathsList, filename)
 
         try:
             if file_path.exists():
@@ -57,6 +90,7 @@ def create_api(_: gr.Blocks, app: FastAPI):
             raise HTTPException(status_code=500, detail=str(e))
 
     app.include_router(router)
+
 
 try:
     import modules.script_callbacks as script_callbacks

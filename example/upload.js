@@ -13,7 +13,8 @@ async function uploadChunk(content, chunkNumber, filename) {
         filename,
         chunkNumber,
         content,
-        modelType: 'lora',
+        modelType: 'lora', // checkpoint, vae
+        paths: 'sub1/sub2',
     };
 
     try {
