@@ -28,7 +28,7 @@ def create_api(_: gr.Blocks, app: FastAPI):
 
         try:
             if chunkNumber == 1 and file_path.exists() and not overwrite:
-                return {"message": "File already exists and overwrite is false"}
+                return {"code": "1", "message": "File already exists and overwrite is false"}
 
             mode = 'wb' if chunkNumber == 1 else 'ab'
             with open(file_path, mode) as f:
