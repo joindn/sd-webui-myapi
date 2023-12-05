@@ -6,7 +6,7 @@
 
 - **URL**: `/myapi/model`
 - **Method**: `POST`
-- **Auth Required**: Yes
+- **Auth Required**: Yes --api-auth admin:123456
 - **Parameters**:
   - `chunkNumber` (int): The number of the file chunk.
   - `content` (str): The base64 encoded content of the file.
@@ -18,7 +18,7 @@
 
 - **URL**: `/myapi/model/{modelName}`
 - **Method**: `DELETE`
-- **Auth Required**: Yes
+- **Auth Required**: Yes (--api-auth admin:123456)
 - **Path Parameters**:
   - `modelName` (str): The name of the model to be deleted.
 - **Query Parameters**:
