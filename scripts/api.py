@@ -6,6 +6,8 @@ import gradio as gr
 from modules.api.api import Api
 from modules.call_queue import queue_lock
 import logging
+import subprocess
+from modules import shared
 
 logging.basicConfig(level=logging.INFO)
 
@@ -14,8 +16,12 @@ router = APIRouter(prefix="/myapi")
 
 def create_api(_: gr.Blocks, app: FastAPI):
     api = Api(app, queue_lock)
+    deps = None
+    if shared.cmd_opts.api_auth:
+        deps = [Depends(api.auth)]
 
-    @router.post("/model", dependencies=[Depends(api.auth)])
+
+    @router.post("/model", dependencies=deps)
     async def uploadModel(
         chunkNumber: int = Body(..., title='chunk number'),
         content: str = Body(..., title='chunk content'),
@@ -59,7 +65,7 @@ def create_api(_: gr.Blocks, app: FastAPI):
             logging.error(f"Error in uploadModel: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    @router.delete("/model/{filename}", dependencies=[Depends(api.auth)])
+    @router.delete("/model/{filename}", dependencies=deps)
     async def deleteModel(filename: str, modelType: str, paths: str):
 
         pathsList = paths.split('/')
@@ -88,6 +94,31 @@ def create_api(_: gr.Blocks, app: FastAPI):
         except Exception as e:
             logging.error(f"Error in deleteModel: {e}")
             raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get("/gpu/info", dependencies=deps)
+    async def getGpuInfo():
+        try:
+            # 执行nvidia-smi命令以获取GPU信息
+            nvidia_smi_output = subprocess.check_output(['nvidia-smi', '--query-gpu=gpu_name,utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits'], encoding='utf-8')
+
+            # 分析输出，创建数据结构
+            gpu_infos = []
+            for line in nvidia_smi_output.strip().split('\n'):
+                gpu_name, utilization, memory_used, memory_total = line.split(', ')
+                gpu_info = {
+                    "type": gpu_name.strip(),
+                    "utilization": int(utilization.strip()),
+                    "used": int(memory_used.strip()),
+                    "total": int(memory_total.strip())
+                }
+                gpu_infos.append(gpu_info)
+
+            return {"code": "0", "data": gpu_infos, "message": "success"}
+
+        except Exception as e:
+            logging.error(f"Error in getGpuInfo: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
 
     app.include_router(router)
 
