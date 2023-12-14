@@ -98,10 +98,7 @@ def create_api(_: gr.Blocks, app: FastAPI):
     @router.get("/gpu/info", dependencies=deps)
     async def getGpuInfo():
         try:
-            # 执行nvidia-smi命令以获取GPU信息
             nvidia_smi_output = subprocess.check_output(['nvidia-smi', '--query-gpu=gpu_name,utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits'], encoding='utf-8')
-
-            # 分析输出，创建数据结构
             gpu_infos = []
             for line in nvidia_smi_output.strip().split('\n'):
                 gpu_name, utilization, memory_used, memory_total = line.split(', ')
