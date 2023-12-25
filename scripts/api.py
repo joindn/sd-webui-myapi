@@ -65,6 +65,48 @@ def create_api(_: gr.Blocks, app: FastAPI):
             logging.error(f"Error in uploadModel: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    @router.post("/modelByUrl", dependencies=deps)
+    async def uploadModelByUrl(
+        url: str = Body(..., title='model url'),
+        filename: str = Body(..., title='filename'),
+        modelType: str = Body(..., title='model type'),
+        paths: str = Body(..., title='models subdir path'),
+        overwrite: bool = Body(False, title='overwrite'),
+    ):
+
+        pathsList = paths.split('/')
+        if len(pathsList) > 3:
+            raise HTTPException(
+                status_code=400, detail="Path exceeds the maximum depth of 3")
+        if any('..' in p or p.startswith('/') for p in pathsList):
+            raise HTTPException(status_code=400, detail="Invalid path")
+
+        if modelType == "lora":
+            subDir = "Lora"
+        elif modelType == "checkpoint":
+            subDir = "Stable-diffusion"
+        elif modelType == "vae":
+            subDir = "VAE"
+        else:
+            raise HTTPException(status_code=400, detail="Invalid model type")
+        modelDir = Path(os.getcwd(), 'models', subDir, *pathsList)
+        modelDir.mkdir(parents=True, exist_ok=True)
+        filepath = modelDir / filename
+
+        if not overwrite and filepath.exists():
+            return {"code": "1", "message": "File already exists and overwrite is false"}
+
+        try:
+            # 使用wget下载文件
+            subprocess.run(["wget", "-O", str(filepath), url], check=True)
+            return {"code": "0", "message": "Upload successful"}
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Error downloading file: {e}")
+            raise HTTPException(status_code=500, detail=f"Error downloading file: {e}")
+        except Exception as e:
+            logging.error(f"Error in uploadModel: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
     @router.delete("/model/{filename}", dependencies=deps)
     async def deleteModel(filename: str, modelType: str, paths: str):
 
