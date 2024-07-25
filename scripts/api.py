@@ -9,6 +9,7 @@ import logging
 import subprocess
 from modules import shared
 
+
 logging.basicConfig(level=logging.INFO)
 
 router = APIRouter(prefix="/myapi")
